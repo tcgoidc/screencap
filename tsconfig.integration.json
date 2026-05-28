@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2019",
+    "noEmit": false,
+    "outDir": ".integration-tests"
+  },
+  "include": ["src/overlay-contract.ts", "src/settings-contract.ts", "tests/**/*.ts"]
+}
