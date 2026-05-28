@@ -10,6 +10,14 @@ Screencap is a Tauri v2 desktop screenshot utility with a Rust backend and a Typ
 
 The project is currently tuned for Windows and has release packaging in place for MSI and NSIS installers.
 
+Screen Cap Options:
+
+![screenshot1](screenshots/screenshots_1.png)
+
+Screen Cap draw Operators:
+
+![screenshot2](screenshots/screenshots_2.png)
+
 ## Features
 
 - Global shortcut trigger for capture.
