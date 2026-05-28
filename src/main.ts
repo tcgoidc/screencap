@@ -6,6 +6,7 @@ import {
   validateShortcut,
   type AppSettings,
 } from './settings-contract.js'
+import { APP_CREDITS_LABEL, APP_VERSION_LABEL } from './app-meta.js'
 import { getTauriUnavailableMessage, invokeTauri, isTauriRuntimeAvailable } from './tauri-runtime.js'
 import './styles.css'
 
@@ -81,6 +82,10 @@ app.innerHTML = `
       </div>
       <p class="settings-status" id="settings-status">Loading settings...</p>
     </form>
+    <footer class="app-version-footer">
+      <span class="app-version-badge">${APP_VERSION_LABEL}</span>
+      <span class="app-version-credit">${APP_CREDITS_LABEL}</span>
+    </footer>
   </main>
 `
 

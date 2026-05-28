@@ -15,6 +15,7 @@ import {
   type AppSettings,
   type TextFontFamily,
 } from './settings-contract.js'
+import { APP_CREDITS_LABEL, APP_VERSION_LABEL } from './app-meta.js'
 import {
   getTauriUnavailableMessage,
   invokeTauri,
@@ -196,6 +197,10 @@ overlayRoot.innerHTML = `
         </label>
       </div>
       <p class="overlay-meta" id="capture-status">Overlay initialized.</p>
+      <footer class="overlay-version-footer">
+        <span class="app-version-badge">${APP_VERSION_LABEL}</span>
+        <span class="app-version-credit">${APP_CREDITS_LABEL}</span>
+      </footer>
     </section>
   </main>
 `
