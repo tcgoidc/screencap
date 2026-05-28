@@ -195,7 +195,7 @@ overlayRoot.innerHTML = `
           <p class="overlay-meta">Drag to define the capture area. Use V, R, A, T, and B to switch tools. Press Esc to close the overlay.</p>
         </div>
         <div class="overlay-actions">
-          <button class="button button-primary" id="confirm-selection" disabled>Confirm</button>
+          <button class="button button-primary" id="confirm-selection" disabled>To Clipboard</button>
           <button class="button button-secondary" id="save-selection" disabled>Save</button>
           <button class="button button-primary" id="refresh-capture">Capture now</button>
           <button class="button button-secondary" id="dismiss-overlay">Close</button>
