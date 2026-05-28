@@ -16,10 +16,17 @@ import {
   type TextFontFamily,
 } from './settings-contract.js'
 import {
+  APP_CREDITS_LABEL,
+  APP_RELEASE_DATE_LABEL,
+  APP_REPOSITORY_URL,
+  APP_VERSION_LABEL,
+} from './app-meta.js'
+import {
   getTauriUnavailableMessage,
   invokeTauri,
   isTauriRuntimeAvailable,
   listenTauri,
+  openExternalUrl,
   saveWithTauriDialog,
 } from './tauri-runtime.js'
 import './styles.css'
@@ -136,19 +143,7 @@ overlayRoot.innerHTML = `
       </div>
     </div>
     <section class="overlay-card overlay-card-floating" id="overlay-card">
-      <div class="overlay-panel-handle" id="overlay-panel-handle" title="Drag to move the overlay controls">Move</div>
-      <div class="overlay-toolbar">
-        <div>
-          <h1>Overlay</h1>
-          <p class="overlay-meta">Drag to define the capture area. Use V, R, A, T, and B to switch tools. Press Esc to close the overlay.</p>
-        </div>
-        <div class="overlay-actions">
-          <button class="button button-primary" id="confirm-selection" disabled>Confirm</button>
-          <button class="button button-secondary" id="save-selection" disabled>Save</button>
-          <button class="button button-primary" id="refresh-capture">Capture now</button>
-          <button class="button button-secondary" id="dismiss-overlay">Close</button>
-        </div>
-      </div>
+      <div class="overlay-panel-handle" id="overlay-panel-handle" title="Drag to move the overlay controls">ScreenCap</div>
       <div class="display-picker" id="display-picker"></div>
       <div class="annotation-toolbar">
         <button class="tool-pill is-active" id="tool-select" type="button">Select</button>
@@ -195,7 +190,28 @@ overlayRoot.innerHTML = `
           <input class="property-color" id="text-border-color" type="color" value="#f8fafc" />
         </label>
       </div>
+      <div class="overlay-toolbar">
+        <div>
+          <p class="overlay-meta">Drag to define the capture area. Use V, R, A, T, and B to switch tools. Press Esc to close the overlay.</p>
+        </div>
+        <div class="overlay-actions">
+          <button class="button button-primary" id="confirm-selection" disabled>To Clipboard</button>
+          <button class="button button-secondary" id="save-selection" disabled>Save</button>
+          <button class="button button-primary" id="refresh-capture">Capture now</button>
+          <button class="button button-secondary" id="dismiss-overlay">Close</button>
+        </div>
+      </div>
       <p class="overlay-meta" id="capture-status">Overlay initialized.</p>
+      <footer class="overlay-version-footer" style="display: none;">
+        <div class="app-version-meta">
+          <span class="app-version-badge">${APP_VERSION_LABEL}</span>
+          <span class="app-version-credit">${APP_CREDITS_LABEL}</span>
+        </div>
+        <div class="app-version-details">
+          <span>${APP_RELEASE_DATE_LABEL}</span>
+          <a class="app-version-link" href="${APP_REPOSITORY_URL}" target="_blank" rel="noreferrer">${APP_REPOSITORY_URL}</a>
+        </div>
+      </footer>
     </section>
   </main>
 `
@@ -240,6 +256,7 @@ const confirmButton = document.querySelector<HTMLButtonElement>('#confirm-select
 const saveButton = document.querySelector<HTMLButtonElement>('#save-selection')
 const refreshButton = document.querySelector<HTMLButtonElement>('#refresh-capture')
 const dismissButton = document.querySelector<HTMLButtonElement>('#dismiss-overlay')
+const repositoryLink = document.querySelector<HTMLAnchorElement>('.app-version-link')
 
 if (
   !displayPicker ||
@@ -281,7 +298,8 @@ if (
   !confirmButton ||
   !saveButton ||
   !refreshButton ||
-  !dismissButton
+  !dismissButton ||
+  !repositoryLink
 ) {
   throw new Error('Overlay controls are incomplete')
 }
@@ -2171,6 +2189,11 @@ displayPicker.addEventListener('click', (event) => {
 
 dismissButton.addEventListener('click', () => {
   void hideOverlay()
+})
+
+repositoryLink.addEventListener('click', (event) => {
+  event.preventDefault()
+  void openExternalUrl(APP_REPOSITORY_URL)
 })
 
 overlayPanelHandle.addEventListener('pointerdown', (event) => {

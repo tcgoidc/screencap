@@ -6,7 +6,18 @@ import {
   validateShortcut,
   type AppSettings,
 } from './settings-contract.js'
-import { getTauriUnavailableMessage, invokeTauri, isTauriRuntimeAvailable } from './tauri-runtime.js'
+import {
+  APP_CREDITS_LABEL,
+  APP_RELEASE_DATE_LABEL,
+  APP_REPOSITORY_URL,
+  APP_VERSION_LABEL,
+} from './app-meta.js'
+import {
+  getTauriUnavailableMessage,
+  invokeTauri,
+  isTauriRuntimeAvailable,
+  openExternalUrl,
+} from './tauri-runtime.js'
 import './styles.css'
 
 const app = document.querySelector<HTMLDivElement>('#app')
@@ -81,6 +92,16 @@ app.innerHTML = `
       </div>
       <p class="settings-status" id="settings-status">Loading settings...</p>
     </form>
+    <footer class="app-version-footer">
+      <div class="app-version-meta">
+        <span class="app-version-badge">${APP_VERSION_LABEL}</span>
+        <span class="app-version-credit">${APP_CREDITS_LABEL}</span>
+      </div>
+      <div class="app-version-details">
+        <span>${APP_RELEASE_DATE_LABEL}</span>
+        <a class="app-version-link" href="${APP_REPOSITORY_URL}" target="_blank" rel="noreferrer">${APP_REPOSITORY_URL}</a>
+      </div>
+    </footer>
   </main>
 `
 
@@ -100,6 +121,7 @@ const textBorderSizeValue = document.querySelector<HTMLElement>('#text-border-si
 const resetSettingsButton = document.querySelector<HTMLButtonElement>('#reset-settings')
 const settingsStatus = document.querySelector<HTMLParagraphElement>('#settings-status')
 const shortcutHint = document.querySelector<HTMLElement>('#shortcut-hint')
+const repositoryLink = document.querySelector<HTMLAnchorElement>('.app-version-link')
 
 if (
   !settingsForm ||
@@ -117,7 +139,8 @@ if (
   !textBorderSizeValue ||
   !resetSettingsButton ||
   !settingsStatus ||
-  !shortcutHint
+  !shortcutHint ||
+  !repositoryLink
 ) {
   throw new Error('Settings controls are incomplete')
 }
@@ -226,6 +249,11 @@ resetSettingsButton.addEventListener('click', async () => {
   } catch (error) {
     settingsStatus.textContent = `Failed to reset settings: ${String(error)}`
   }
+})
+
+repositoryLink.addEventListener('click', (event) => {
+  event.preventDefault()
+  void openExternalUrl(APP_REPOSITORY_URL)
 })
 
 void loadSettings()

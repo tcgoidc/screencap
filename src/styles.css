@@ -136,6 +136,81 @@ body {
   gap: 12px;
 }
 
+.app-version-footer,
+.overlay-version-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(22, 32, 51, 0.08);
+}
+
+.app-version-meta,
+.app-version-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-version-details {
+  align-items: flex-end;
+}
+
+.overlay-version-footer {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.app-version-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 62px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(65, 184, 131, 0.12);
+  color: #1c6b4e;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.overlay-version-footer .app-version-badge {
+  background: rgba(92, 225, 166, 0.16);
+  color: #d7fff0;
+}
+
+.app-version-credit {
+  color: #66748e;
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.overlay-version-footer .app-version-credit {
+  color: #aabbd1;
+}
+
+.app-version-details,
+.app-version-link {
+  color: #66748e;
+  font-size: 0.74rem;
+  text-align: right;
+}
+
+.overlay-version-footer .app-version-details,
+.overlay-version-footer .app-version-link {
+  color: #aabbd1;
+}
+
+.app-version-link {
+  text-decoration: none;
+}
+
+.app-version-link:hover {
+  text-decoration: underline;
+}
+
 .overlay-shell {
   overflow: hidden;
   background: transparent;
