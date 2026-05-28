@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 use std::process::Command;
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -19,7 +19,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{
     image::Image,
     AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Position, Size,
-    State, WebviewUrl, WebviewWindowBuilder,
+    State, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -536,6 +536,43 @@ fn save_image_file(data_url: String, path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("only http and https URLs are supported".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .args(["/C", "start", "", &url])
+            .spawn()
+            .map_err(|error| format!("failed to open url '{url}': {error}"))?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|error| format!("failed to open url '{url}': {error}"))?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|error| format!("failed to open url '{url}': {error}"))?;
+        return Ok(());
+    }
+
+    #[allow(unreachable_code)]
+    Err("opening urls is not supported on this platform".to_string())
+}
+
+#[tauri::command]
 fn capture_screen(app: AppHandle) -> Result<Vec<CaptureFrame>, String> {
     if !screen_capture_access_granted() {
         return Err(SCREEN_CAPTURE_PERMISSION_MESSAGE.to_string());
@@ -822,6 +859,14 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .on_window_event(|window, event| {
+            if window.label() == MAIN_WINDOW_LABEL {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .manage(AppState {
             active_shortcut: Mutex::new(default_shortcut()),
             settings: Mutex::new(AppSettings::default()),
@@ -835,7 +880,8 @@ fn main() {
             save_settings,
             reset_settings,
             copy_image_to_clipboard,
-            save_image_file
+            save_image_file,
+            open_url
         ])
         .setup(|app| {
             let (loaded_settings, loaded_shortcut, repaired_settings) =

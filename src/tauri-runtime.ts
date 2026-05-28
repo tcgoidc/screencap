@@ -37,3 +37,12 @@ export const saveWithTauriDialog = async (...args: Parameters<typeof tauriSave>)
 
   return tauriSave(...args)
 }
+
+export const openExternalUrl = async (url: string) => {
+  if (!isTauriRuntimeAvailable()) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+    return
+  }
+
+  await invokeTauri('open_url', { url })
+}
