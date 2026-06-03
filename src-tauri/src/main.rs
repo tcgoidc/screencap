@@ -26,6 +26,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use xcap::Monitor;
 
 const MAIN_WINDOW_LABEL: &str = "main";
+const ABOUT_WINDOW_LABEL: &str = "about";
 const OVERLAY_WINDOW_LABEL: &str = "overlay";
 const HOTKEY_EVENT: &str = "hotkey://capture";
 const DEFAULT_SHORTCUT: &str = "CmdOrCtrl+Shift+A";
@@ -906,10 +907,41 @@ fn ensure_overlay_window(app: &mut tauri::App) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
+fn ensure_about_window(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    if app.get_webview_window(ABOUT_WINDOW_LABEL).is_some() {
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(app, ABOUT_WINDOW_LABEL, WebviewUrl::App("about.html".into()))
+        .title("About Screencap")
+        .visible(false)
+        .resizable(false)
+        .center()
+        .inner_size(560.0, 420.0)
+        .build()?;
+
+    Ok(())
+}
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn show_about_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(ABOUT_WINDOW_LABEL) {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let about = MenuItemBuilder::with_id("about", "About").build(app)?;
     let settings = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
     let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
-    let menu = MenuBuilder::new(app).items(&[&settings, &quit]).build()?;
+    let menu = MenuBuilder::new(app).items(&[&about, &settings, &quit]).build()?;
 
     let mut tray_builder = TrayIconBuilder::new().menu(&menu);
 
@@ -920,11 +952,11 @@ fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     tray_builder
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
+            "about" => {
+                show_about_window(app);
+            }
             "settings" => {
-                if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+                show_main_window(app);
             }
             "quit" => app.exit(0),
             _ => {}
@@ -936,10 +968,7 @@ fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 ..
             } = event
             {
-                if let Some(window) = tray.app_handle().get_webview_window(MAIN_WINDOW_LABEL) {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+                show_main_window(tray.app_handle());
             }
         })
         .build(app)?;
@@ -959,7 +988,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .on_window_event(|window, event| {
-            if window.label() == MAIN_WINDOW_LABEL {
+            if window.label() == MAIN_WINDOW_LABEL || window.label() == ABOUT_WINDOW_LABEL {
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();
@@ -996,6 +1025,7 @@ fn main() {
             if let Ok(mut active_shortcut) = app.state::<AppState>().active_shortcut.lock() {
                 *active_shortcut = loaded_shortcut;
             }
+            ensure_about_window(app)?;
             ensure_overlay_window(app)?;
             build_tray(app)?;
             register_capture_shortcut(app.handle(), loaded_shortcut)?;

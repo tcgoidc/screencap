@@ -4,6 +4,7 @@ module.exports = defineConfig({
   build: {
     rollupOptions: {
       input: {
+        about: 'about.html',
         main: 'index.html',
         overlay: 'overlay.html',
       },

@@ -1,11 +1,13 @@
 const binding = require('../node_modules/@tauri-apps/cli-win32-x64-msvc')
+const os = require('os')
+const path = require('path')
 require('./sync-version.cjs')
 
-const cargoBinPath = 'D:\\Users\\it0116\\.cargo\\bin'
+const cargoBinPath = path.join(os.homedir(), '.cargo', 'bin')
 
-if (!process.env.PATH || !process.env.PATH.split(';').includes(cargoBinPath)) {
+if (!process.env.PATH || !process.env.PATH.split(path.delimiter).includes(cargoBinPath)) {
   process.env.PATH = process.env.PATH
-    ? `${cargoBinPath};${process.env.PATH}`
+    ? `${cargoBinPath}${path.delimiter}${process.env.PATH}`
     : cargoBinPath
 }
 

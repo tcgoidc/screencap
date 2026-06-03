@@ -170,9 +170,3 @@ graph TD
 ```
 
 ***
-
-### 如何使用這份文件搭配 GitHub Copilot：
-
-1. **引導上下文：** 在 VS Code / Cursor 中開啟這個 `plan.md`，並在與 Copilot Chat 對話時輸入：
-   > *"Please read `plan.md` to understand the complete architecture and specs of my project. Let's start with Phase 1: Rust Backend Infrastructure. Please generate the `main.rs` and `tauri.conf.json` template according to the instructions."*
-2. **逐步代碼生成：** 按照規劃書中的 **Phase 1 到 Phase 4**，一塊一塊地讓 Copilot 生產代碼。因為文件內寫明了 Edge Cases（如 DPI 縮放、macOS 權限），Copilot 在寫程式碼時會主動避開這些跨平台的常見陷阱。
