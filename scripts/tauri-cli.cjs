@@ -1,4 +1,5 @@
 const binding = require('../node_modules/@tauri-apps/cli-win32-x64-msvc')
+require('./sync-version.cjs')
 
 const cargoBinPath = 'D:\\Users\\it0116\\.cargo\\bin'
 

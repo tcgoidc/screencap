@@ -1722,13 +1722,15 @@ const saveSelectionToFile = async () => {
 
     if (!filePath) {
       captureStatus.textContent = 'Save cancelled.'
-      return
+      return false
     }
 
     await invokeTauri('save_image_file', { dataUrl, path: filePath })
     captureStatus.textContent = `Selection saved to ${filePath}.`
+    return true
   } catch (error) {
     captureStatus.textContent = String(error)
+    return false
   }
 }
 
@@ -2166,7 +2168,13 @@ confirmButton.addEventListener('click', () => {
 })
 
 saveButton.addEventListener('click', () => {
-  void saveSelectionToFile()
+  void (async () => {
+    const saved = await saveSelectionToFile()
+
+    if (saved) {
+      await hideOverlay()
+    }
+  })()
 })
 
 displayPicker.addEventListener('click', (event) => {

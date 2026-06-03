@@ -36,6 +36,17 @@ const DEFAULT_TEXT_BORDER_COLOR: &str = "#f8fafc";
 const DEFAULT_TEXT_BORDER_SIZE: u8 = 0;
 const SCREEN_CAPTURE_PERMISSION_MESSAGE: &str =
     "screen capture permission is not granted. Open System Settings > Privacy & Security > Screen Recording and allow Screencap.";
+const PNG_METADATA_APP_NAME: &str = "TCGO Screen Capture";
+const PNG_METADATA_CREDITS: &str = "Powered by TCGOIDC, LTD";
+const PNG_METADATA_RELEASE_DATE: &str = "2026-05-28";
+const PNG_METADATA_REPOSITORY_URL: &str = "https://github.com/tcgoidc/screencap";
+const PNG_EXIF_DATE_TIME: &str = "2026:05:28 00:00:00";
+const EXIF_TAG_IMAGE_DESCRIPTION: u16 = 0x010E;
+const EXIF_TAG_SOFTWARE: u16 = 0x0131;
+const EXIF_TAG_DATE_TIME: u16 = 0x0132;
+const EXIF_TAG_ARTIST: u16 = 0x013B;
+const EXIF_TAG_COPYRIGHT: u16 = 0x8298;
+const TIFF_TYPE_ASCII: u16 = 2;
 
 #[cfg(target_os = "macos")]
 #[link(name = "ApplicationServices", kind = "framework")]
@@ -281,6 +292,94 @@ fn decode_exported_png(data_url: &str) -> Result<Vec<u8>, String> {
         .map_err(|error| format!("failed to decode exported image: {error}"))?;
 
     Ok(png_bytes)
+}
+
+fn encode_png_with_app_metadata(data_url: &str) -> Result<Vec<u8>, String> {
+    let png_bytes = decode_exported_png(data_url)?;
+    let rgba_image = image::load_from_memory(&png_bytes)
+        .map_err(|error| format!("failed to decode exported image: {error}"))?
+        .to_rgba8();
+    let (width, height) = rgba_image.dimensions();
+    let mut encoded_png = Vec::new();
+
+    let mut encoder = png::Encoder::new(&mut encoded_png, width, height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder
+        .add_text_chunk("Software".to_string(), PNG_METADATA_APP_NAME.to_string())
+        .map_err(|error| format!("failed to add PNG metadata: {error}"))?;
+    encoder
+        .add_text_chunk("Version".to_string(), env!("CARGO_PKG_VERSION").to_string())
+        .map_err(|error| format!("failed to add PNG metadata: {error}"))?;
+    encoder
+        .add_text_chunk("Comment".to_string(), PNG_METADATA_CREDITS.to_string())
+        .map_err(|error| format!("failed to add PNG metadata: {error}"))?;
+    encoder
+        .add_text_chunk("Creation Time".to_string(), PNG_METADATA_RELEASE_DATE.to_string())
+        .map_err(|error| format!("failed to add PNG metadata: {error}"))?;
+    encoder
+        .add_text_chunk("Source".to_string(), PNG_METADATA_REPOSITORY_URL.to_string())
+        .map_err(|error| format!("failed to add PNG metadata: {error}"))?;
+
+    {
+        let mut writer = encoder
+            .write_header()
+            .map_err(|error| format!("failed to initialize PNG writer: {error}"))?;
+        writer
+            .write_chunk(png::chunk::eXIf, &build_png_exif_metadata())
+            .map_err(|error| format!("failed to write PNG EXIF metadata: {error}"))?;
+        writer
+            .write_image_data(rgba_image.as_raw())
+            .map_err(|error| format!("failed to encode PNG image: {error}"))?;
+    }
+
+    Ok(encoded_png)
+}
+
+fn build_png_exif_metadata() -> Vec<u8> {
+    let entries = [
+        (
+            EXIF_TAG_IMAGE_DESCRIPTION,
+            format!(
+                "{PNG_METADATA_APP_NAME} | {PNG_METADATA_CREDITS} | {PNG_METADATA_REPOSITORY_URL}"
+            ),
+        ),
+        (
+            EXIF_TAG_SOFTWARE,
+            format!("{PNG_METADATA_APP_NAME} {}", env!("CARGO_PKG_VERSION")),
+        ),
+        (EXIF_TAG_DATE_TIME, PNG_EXIF_DATE_TIME.to_string()),
+        (EXIF_TAG_ARTIST, "TCGOIDC, LTD".to_string()),
+        (EXIF_TAG_COPYRIGHT, PNG_METADATA_CREDITS.to_string()),
+    ];
+    let entry_count = u16::try_from(entries.len()).expect("expected EXIF entry count to fit in u16");
+    let ifd_offset = 8u32;
+    let ifd_data_offset = ifd_offset + 2 + u32::from(entry_count) * 12 + 4;
+    let mut exif = Vec::new();
+    let mut string_data = Vec::new();
+    let mut next_value_offset = ifd_data_offset;
+
+    exif.extend_from_slice(b"II");
+    exif.extend_from_slice(&42u16.to_le_bytes());
+    exif.extend_from_slice(&ifd_offset.to_le_bytes());
+    exif.extend_from_slice(&entry_count.to_le_bytes());
+
+    for (tag, value) in entries {
+        let mut bytes = value.into_bytes();
+        bytes.push(0);
+
+        exif.extend_from_slice(&tag.to_le_bytes());
+        exif.extend_from_slice(&TIFF_TYPE_ASCII.to_le_bytes());
+        exif.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+        exif.extend_from_slice(&next_value_offset.to_le_bytes());
+
+        string_data.extend_from_slice(&bytes);
+        next_value_offset += bytes.len() as u32;
+    }
+
+    exif.extend_from_slice(&0u32.to_le_bytes());
+    exif.extend_from_slice(&string_data);
+    exif
 }
 
 #[cfg(target_os = "macos")]
@@ -530,7 +629,7 @@ fn copy_image_to_clipboard(app: AppHandle, data_url: String) -> Result<(), Strin
 
 #[tauri::command]
 fn save_image_file(data_url: String, path: String) -> Result<(), String> {
-    let png_bytes = decode_exported_png(&data_url)?;
+    let png_bytes = encode_png_with_app_metadata(&data_url)?;
 
     fs::write(&path, png_bytes).map_err(|error| format!("failed to save image to '{path}': {error}"))
 }
@@ -911,7 +1010,31 @@ mod tests {
     use super::*;
     use image::{Rgba, RgbaImage};
     use std::cell::RefCell;
+    use std::convert::TryInto;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn find_png_chunk<'a>(bytes: &'a [u8], chunk_type: &[u8; 4]) -> Option<&'a [u8]> {
+        let mut offset = 8usize;
+
+        while offset + 12 <= bytes.len() {
+            let length = u32::from_be_bytes(bytes[offset..offset + 4].try_into().ok()?) as usize;
+            let chunk_name = &bytes[offset + 4..offset + 8];
+            let data_start = offset + 8;
+            let data_end = data_start + length;
+
+            if data_end + 4 > bytes.len() {
+                return None;
+            }
+
+            if chunk_name == chunk_type {
+                return Some(&bytes[data_start..data_end]);
+            }
+
+            offset = data_end + 4;
+        }
+
+        None
+    }
 
     fn sample_png_data_url() -> String {
         let image = RgbaImage::from_pixel(2, 2, Rgba([0x12, 0x34, 0x56, 0xff]));
@@ -1095,9 +1218,23 @@ mod tests {
 
         let saved = fs::read(&path).expect("expected saved image to exist");
         let decoded = image::load_from_memory(&saved).expect("expected saved bytes to be a valid PNG");
+        let decoder = png::Decoder::new(Cursor::new(&saved));
+        let reader = decoder
+            .read_info()
+            .expect("expected saved PNG metadata to be readable");
+        let metadata = &reader.info().uncompressed_latin1_text;
+        let exif_metadata = find_png_chunk(&saved, b"eXIf").expect("expected saved PNG to include eXIf metadata");
 
         assert_eq!(decoded.width(), 2);
         assert_eq!(decoded.height(), 2);
+        assert!(metadata.iter().any(|chunk| chunk.keyword == "Software" && chunk.text == PNG_METADATA_APP_NAME));
+        assert!(metadata.iter().any(|chunk| chunk.keyword == "Version" && chunk.text == env!("CARGO_PKG_VERSION")));
+        assert!(metadata.iter().any(|chunk| chunk.keyword == "Comment" && chunk.text == PNG_METADATA_CREDITS));
+        assert!(metadata.iter().any(|chunk| chunk.keyword == "Creation Time" && chunk.text == PNG_METADATA_RELEASE_DATE));
+        assert!(metadata.iter().any(|chunk| chunk.keyword == "Source" && chunk.text == PNG_METADATA_REPOSITORY_URL));
+        assert!(exif_metadata.windows(PNG_METADATA_APP_NAME.len()).any(|window| window == PNG_METADATA_APP_NAME.as_bytes()));
+        assert!(exif_metadata.windows(PNG_EXIF_DATE_TIME.len()).any(|window| window == PNG_EXIF_DATE_TIME.as_bytes()));
+        assert!(exif_metadata.windows(PNG_METADATA_REPOSITORY_URL.len()).any(|window| window == PNG_METADATA_REPOSITORY_URL.as_bytes()));
 
         let _ = fs::remove_file(path);
     }
