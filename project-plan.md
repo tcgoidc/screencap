@@ -1,165 +1,207 @@
-# Project Plan: Cross-Platform Screencap Application (Tauri + Rust + TS)
+# Project Plan: Screencap
 
-## 1. Business Context & Objective
-The goal of this project is to develop a lightweight, high-performance, cross-platform (Windows & macOS) screen capture utility. 
-Unlike bloated alternatives, this application focuses on a minimal memory footprint (< 30MB idle) and seamless integration into user workflows (hotkey triggering, canvas editing, and clipboard/file output).
+## 1. Project Snapshot
 
----
-
-## 2. Technical Stack
-- **Backend Core:** Rust (Tauri v2 Framework)
-- **Frontend UI:** TypeScript + Vite + HTML5 Canvas (or Fabric.js/Konva.js)
-- **Inter-Process Communication (IPC):** Tauri Commands and Events
-- **Key Rust Crates:** `screenshots` (or `scap`), `tauri-plugin-global-shortcut`, `tauri-plugin-clipboard-manager`
+- **Product:** Cross-platform screenshot and annotation desktop application built with Tauri v2, Rust, TypeScript, and Vite.
+- **Current version:** `0.1.1`
+- **Current status:** Feature-complete for the current Windows desktop MVP, with packaging working and the main focus shifted from scaffolding to polish, verification, and release hardening.
+- **Current runtime surfaces:** Hidden Settings window, fullscreen transparent Overlay window, standalone About window/page, and a system tray entry point with hotkey-driven capture flow.
 
 ---
 
-## 3. Functional Requirements & User Stories
+## 2. Chat History Summary
 
-### 3.1 Core Workflow (MVP)
-- **User Story 1: Global Hotkey Activation**
-  - *As a* user, *I want to* press a customizable global hotkey (Default: `CmdOrCtrl+Shift+A`), *so that* I can instantly trigger the screenshot mode regardless of which app is currently focused.
-  - **Acceptance Criteria:**
-    1. The app must run as a background agent / system tray icon.
-    2. Pressing the hotkey hides the main app window (if visible), captures the screen buffer, and opens a transparent, borderless, full-screen overlay window within $100\text{ms}$.
+### 2.1 Delivery Summary
 
-- **User Story 2: Area Selection & Window Detection**
-  - *As a* user, *I want to* drag my mouse to select a rectangular area of the screen, *so that* I can capture exactly what I need.
-  - **Acceptance Criteria:**
-    1. Display crosshairs and real-time pixel dimensions (e.g., `800 x 600`) during dragging.
-    2. Pressing `Esc` must abort the screenshot mode and clean up memory immediately.
+- Started from the original architecture/spec plan and implemented the Tauri desktop foundation.
+- Added Rust backend commands for screen capture, clipboard copy, file save, URL opening, settings persistence, and hotkey management.
+- Built the frontend Settings page and capture Overlay page with annotation tools and export flow.
+- Added packaging helpers for a constrained local environment, including Node 13 compatibility and Cargo path handling.
 
-- **User Story 3: Canvas Annotation**
-  - *As a* user, *I want to* annotate the selected area using basic drawing tools, *so that* I can highlight specific details before saving.
-  - **Acceptance Criteria:**
-    1. Provide at least 4 tools: Rectangle, Arrow, Blur/Mosaic, and Text input.
-    2. Support `Ctrl+Z` / `Cmd+Z` to undo the last annotation object.
-    3. Annotations must be managed as vector objects on the canvas, not direct destructive pixel modifications, until the final export.
+### 2.2 Debugging And UX Iterations
 
-- **User Story 4: Output Execution**
-  - *As a* user, *I want to* copy the final annotated image to my system clipboard or save it locally, *so that* I can share it instantly.
-  - **Acceptance Criteria:**
-    1. Double-clicking inside the selection area or clicking the "Confirm" button writes the flattened image bytes directly to the OS clipboard.
-    2. Provide a "Save" button that invokes the native OS file picker to save as PNG/JPG.
+- Fixed runtime and lifecycle issues including screen capture fallback behavior, text tool activation bugs, confirm button close behavior, settings reopen after close, tray icon visibility, overlay controls blocking capture interactions, and external GitHub link opening via the OS browser.
+- Improved overlay usability with smaller movable floating controls, friendlier arrow rendering, hide-on-success save flow, and compact annotation property controls.
 
----
+### 2.3 Metadata, Docs, And Productization
 
-## 4. Non-Functional Requirements
+- Added shared app metadata for version, credits, release date, and repository URL.
+- Centralized version alignment so `package.json` is the version source of truth and syncs to Tauri and Cargo metadata.
+- Added PNG save metadata through both PNG `tEXt` metadata and PNG `eXIf` metadata payloads.
+- Wrote a complete `README.md` and cleaned up path-specific documentation issues.
+- Added a shared About layout, then promoted it into a standalone About page/window opened from the tray.
 
-| Category | Requirement Specification |
-| :--- | :--- |
-| **Performance** | Hotkey-to-overlay latency **$< 100\text{ms}$**. Idle RAM usage **$< 30\text{MB}$**. Installation package size **$< 15\text{MB}$**. |
-| **Security** | On macOS, check for Screen Recording permissions via `CGPreflightScreenCaptureAccess`. If `false`, prompt user via system settings. All data must reside locally unless cloud export is explicitly added later. |
-| **Usability** | Support keyboard micro-adjustments (Arrow keys move selection by 1 pixel; Shift + Arrow keys by 10 pixels). |
+### 2.4 Validation Summary
+
+- Frontend builds have been repeatedly validated with `npm run build`.
+- Backend behavior has been validated with focused Rust tests and `cargo build`.
+- Tauri packaging has been validated with `npm run tauri:build` producing MSI and NSIS artifacts.
 
 ---
 
-## 5. System Design & Data Flow
+## 3. Current Implemented Scope
 
-### 5.1 Architecture Diagram
+### 3.1 Backend
+
+- [x] Tauri v2 application scaffold
+- [x] System tray with `Settings`, `About`, and `Quit`
+- [x] Global shortcut registration and update flow
+- [x] Settings persistence and reset
+- [x] Native screen capture flow with Windows fallback support
+- [x] Clipboard export
+- [x] File save with PNG metadata writing
+- [x] External URL opening via backend command
+- [x] Main/About window hide-on-close lifecycle behavior
+
+### 3.2 Frontend
+
+- [x] Settings page
+- [x] Fullscreen transparent overlay page
+- [x] Standalone About page
+- [x] Selection rectangle and live dimensions
+- [x] Annotation tools: select, rectangle, arrow, text, blur
+- [x] Text styling controls: font, background color, border color, border size
+- [x] Clipboard export and PNG save flow
+- [x] Overlay move/reposition behavior for better capture ergonomics
+
+### 3.3 Packaging And Docs
+
+- [x] Node/Cargo wrapper scripts for local build constraints
+- [x] Version synchronization across package, Tauri, and Cargo metadata
+- [x] README and release-facing documentation
+- [x] MSI and NSIS bundle production
+
+---
+
+## 4. Architecture Status
+
+### 4.1 Current Desktop Structure
+
 ```mermaid
 graph TD
-    subgraph Frontend (UI Layer - TS)
-        A[Overlay Canvas] --> B[Annotation Controller]
-        B --> C[Export Utility]
+    T[System Tray] --> S[Settings Window]
+    T --> A[About Window]
+    H[Global Hotkey] --> O[Overlay Window]
+
+    subgraph Frontend
+        S --> SF[Settings Form]
+        A --> AF[About Layout]
+        O --> OC[Capture + Annotation Controller]
     end
 
-    subgraph Tauri IPC Bridge
-        D[Tauri Commands / Events]
+    subgraph Rust Backend
+        R1[Shortcut Manager]
+        R2[Capture Engine]
+        R3[Clipboard Bridge]
+        R4[Save + PNG Metadata]
+        R5[Settings Persistence]
     end
 
-    subgraph Backend Core (Rust Engine)
-        E[Global Hotkey Manager]
-        F[Screen Capture Engine]
-        G[OS Clipboard Bridge]
-    end
-
-    C <--> D
-    D <--> E & F & G
+    SF <--> R5
+    OC <--> R2
+    OC <--> R3
+    OC <--> R4
+    T <--> S
+    T <--> A
+    H <--> R1
 ```
 
-### 5.2 Data Structure: Annotation Canvas State (JSON Schema)
-```json
-{
-  "screenshot_id": "string",
-  "dimensions": { "width": "number", "height": "number" },
-  "shapes": [
-    {
-      "id": "string",
-      "type": "arrow | rectangle | text | blur",
-      "stroke_color": "string",
-      "stroke_width": "number",
-      "points": [ "number" ],
-      "text_content": "string"
-    }
-  ]
-}
-```
+### 4.2 Important Implementation Decisions
 
-## 6. Implementation Considerations & Edge Cases (For Copilot Guidance)
-### 6.1 Multi-Monitor & DPI Awareness (Crucial)
-- Problem: Windows Per-Monitor DPI scaling (e.g., Main monitor 150%, Secondary monitor 100%) and macOS Retina backing scale factors cause coordinate mismatch and blurry captures.
+- Overlay and About windows are created once and reused.
+- Main and About windows hide on close instead of being destroyed.
+- `package.json` is the version source of truth.
+- PNG export metadata is written in Rust at the actual file save path.
 
-- Copilot Directive:
+---
 
-  In Rust, utilize the scale_factor from tauri::Monitor to correctly map physical screen buffers to logical frontend CSS pixels.
+## 5. Updated Phase Status
 
-  Ensure the Tauri window initialization sets .set_resizable(false), .set_decorations(false), and .set_transparent(true).
-
-### 6.2 Application Lifecycle & Window Recycling
-- Problem: Recreating the Tauri window on every hotkey press introduces performance overhead.
-
-- Copilot Directive: Create the overlay window once at startup, keep it hidden (.hide()), and use .show() / .focus() when the hotkey is triggered. Ensure the     window covers the specific monitor boundary where the mouse cursor currently resides.
-
-## 7. Phase-Based Implementation Roadmap
 ### Phase 1: Rust Backend Infrastructure
-- [ ] Initialize Tauri v2 project.
 
-- [ ] Implement system tray icon menu (Quit, Settings).
+- [x] Initialize Tauri v2 project
+- [x] Implement tray menu and window lifecycle behavior
+- [x] Setup global shortcut flow
+- [x] Implement screen capture command and fallback behavior
+- [x] Implement settings persistence, save/export, and URL opening commands
 
-- [ ] Setup tauri-plugin-global-shortcut to listen to CmdOrCtrl+Shift+A.
+### Phase 2: Frontend Overlay And Settings UI
 
-- [ ] Implement Rust command utilizing screenshots crate to capture current display buffers and convert them to Base64 strings or temporary image files.
-
-### Phase 2: Frontend Overlay & Canvas UI
-- [ ] Design a fullscreen frameless transparent HTML template.
-
-- [ ] Implement Canvas to render the captured image buffer as background.
-
-- [ ] Implement mouse event listeners (mousedown, mousemove, mouseup) to draw the selection box boundary.
-
-- [ ] Implement keyboard listeners (Esc to hide window, Arrow keys to tweak bounds).
+- [x] Design and ship fullscreen transparent overlay
+- [x] Implement capture rendering and area selection
+- [x] Implement keyboard close behavior and interaction state handling
+- [x] Build the Settings page and standalone About page
 
 ### Phase 3: Annotation Features
-- [ ] Integrate a canvas library (e.g., Konva/Fabric) or implement custom stateful CustomPainter logic.
 
-- [ ] Implement drawing tools: Rectangle, Arrow, Text.
+- [x] Implement rectangle, arrow, text, and blur tools
+- [x] Implement text property configuration
+- [x] Implement export-to-clipboard and save-to-file actions
+- [x] Implement overlay layout improvements for usability
 
-- [ ] Implement pixelation filter for the "Blur/Mosaic" tool.
+### Phase 4: OS Integration And Optimization
 
-- [ ] Implement Undo stack array for state management.
+- [x] Clipboard integration
+- [x] Windows capture fallback
+- [x] Window reuse and hide/show lifecycle
+- [x] Packaging pipeline validation
+- [~] macOS permission and runtime validation remains to be verified on-device
 
-### Phase 4: OS Integration & Optimization
-- [ ] Map the "Confirm" event to call tauri-plugin-clipboard-manager to write PNG bytes to OS clipboard.
+### Phase 5: Release Hardening
 
-- [ ] Handle macOS screen recording permission guardrails.
+- [x] Shared metadata and About surface
+- [x] Version synchronization
+- [x] PNG metadata writing
+- [x] README completion
+- [ ] Final manual regression pass on packaged build
+- [ ] Product readiness sign-off across supported environments
 
-- [ ] Handle Windows High-DPI coordinate calculation fixes.
+---
 
-## 8. Testing Matrix (Instructions for QA/Copilot Test Generation)
-### 8.1 Unit Tests (Rust)
-- Test hotkey registration and unregistration lifecycle.
+## 6. Open Work
 
-- Test monitor detection returns correct bounds and scale_factor.
+### 6.1 High Priority
 
-### 8.2 Integration Tests (Frontend & IPC)
-- Verify invoke('capture_screen') returns a valid data URI/path string.
+- [ ] Run a fresh packaged-app regression pass on the latest build after the standalone About page changes.
+- [ ] Verify About tray action, settings reopen behavior, capture flow, clipboard copy, save flow, and PNG metadata in the packaged executable.
+- [ ] Confirm Windows tray icon, overlay movement, and save-after-hide behavior in final artifacts.
 
-- Verify pressing Esc key successfully fires window hide command.
+### 6.2 Platform Validation
 
-### 8.3 Edge Case Manual Checklist
-- [ ] App behavior when secondary monitor is disconnected/reconnected during execution.
+- [ ] Validate macOS permissions and capture behavior on real hardware.
+- [ ] Validate multi-monitor and mixed-DPI behavior with broader manual coverage.
 
-- [ ] Capturing screens with different scale factors (e.g., 100% vs 200%).
+### 6.3 Optional Follow-Up
 
-- [ ] Denying macOS screen recording permission, verifying the warning dialog pops up gracefully.
+- [ ] Consider JPG save support if still required by product scope.
+- [ ] Consider richer About content or application diagnostics surface.
+- [ ] Consider automated artifact smoke checks after package build.
+
+---
+
+## 7. Testing And Verification Status
+
+### Verified Recently
+
+- [x] `npm run build`
+- [x] focused Rust tests for `save_image_file`
+- [x] `cargo build --manifest-path src-tauri/Cargo.toml`
+- [x] `npm run tauri:build` on prior packaged iterations
+
+### Recommended Next Verification Pass
+
+1. Launch packaged app.
+2. Verify tray menu shows `About`, `Settings`, and `Quit`.
+3. Open About page from tray and verify external link behavior.
+4. Trigger capture via hotkey.
+5. Save PNG and verify overlay hides after successful save.
+6. Inspect saved PNG for `tEXt` and `eXIf` metadata.
+7. Reopen Settings after closing it to confirm hide-on-close behavior still works.
+
+---
+
+## 8. Release Assessment
+
+- **Engineering status:** Strong MVP with working packaging and significant UX polish.
+- **Primary remaining risk:** Final packaged-app regression coverage, especially around tray/window lifecycle and cross-monitor behavior.
+- **Recommendation:** Treat the project as near-release for Windows after one more packaged validation pass. Do not call it fully release-ready for all target platforms until macOS/device validation is complete.
